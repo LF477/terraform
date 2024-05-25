@@ -8,7 +8,10 @@ provider "aws" {
     skip_requesting_account_id  = true
 
     endpoints {
-        s3 = "http://s3.localhost.localstack.cloud:4566"
+        cloudwatch = "http://localhost:4566"
+        lambda     = "http://localhost:4566"
+        iam        = "http://localhost:4566"
+        s3         = "http://s3.localhost.localstack.cloud:4566"
     }
 }
 
@@ -16,6 +19,52 @@ resource "aws_s3_bucket" "s3-start" {
     bucket = "s3-start"
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "wipe" {
+  bucket = aws_s3_bucket.s3-start.id
+
+  rule {
+    id = "weekly-wipe"
+
+    expiration {
+        days = 7
+    }
+
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket" "s3-finish" {
     bucket = "s3-finish"
+}
+
+data "aws_iam_policy_document" "assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+resource "aws_iam_role" "iam_for_lambda" {
+  name               = "iam_for_lambda"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+}
+
+data "archive_file" "lambda" {
+  type        = "zip"
+  source_file = "${path.module}/lambda/main.py"
+  output_path = "lambda.zip"
+}
+
+resource "aws_lambda_function" "lambda" {
+  filename      = "${path.module}/lambda.zip"
+  function_name = "lambda_func"
+  role          = aws_iam_role.iam_for_lambda.arn
+  handler       = "main.lambda_handler"
+  runtime       = "python3.12"
 }
