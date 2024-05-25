@@ -8,7 +8,7 @@ provider "aws" {
     skip_requesting_account_id  = true
 
     endpoints {
-        cloudwatch = "http://localhost:4566"
+        # cloudwatch = "http://localhost:4566"
         lambda     = "http://localhost:4566"
         iam        = "http://localhost:4566"
         s3         = "http://s3.localhost.localstack.cloud:4566"
@@ -67,4 +67,21 @@ resource "aws_lambda_function" "lambda" {
   role          = aws_iam_role.iam_for_lambda.arn
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
+}
+
+resource "aws_lambda_permission" "test" {
+  statement_id  = "AllowS3Invoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.lambda.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.s3-start.arn
+}
+
+resource "aws_s3_bucket_notification" "aws-lambda-trigger" {
+  bucket = aws_s3_bucket.s3-start.id
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.lambda.arn
+    events              = ["s3:ObjectCreated:*"]
+  }
+  depends_on = [ aws_lambda_permission.test ]
 }
