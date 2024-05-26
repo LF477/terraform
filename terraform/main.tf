@@ -8,7 +8,6 @@ provider "aws" {
     skip_requesting_account_id  = true
 
     endpoints {
-        # cloudwatch = "http://localhost:4566"
         lambda     = "http://localhost:4566"
         iam        = "http://localhost:4566"
         s3         = "http://s3.localhost.localstack.cloud:4566"
@@ -18,6 +17,7 @@ provider "aws" {
 resource "aws_s3_bucket" "s3-start" {
     bucket = "s3-start"
 }
+
 
 resource "aws_s3_bucket_lifecycle_configuration" "wipe" {
   bucket = aws_s3_bucket.s3-start.id
@@ -57,7 +57,7 @@ resource "aws_iam_role" "iam_for_lambda" {
 
 data "archive_file" "lambda" {
   type        = "zip"
-  source_file = "${path.module}/lambda/main.py"
+  source_dir = "${path.module}/lambda/"
   output_path = "lambda.zip"
 }
 
